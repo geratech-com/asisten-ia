@@ -9,8 +9,8 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 # 1. Tampilan Halaman Web
 st.set_page_config(page_title="JDIH Audit Agrinas", page_icon="🔍", layout="centered")
 
-st.title("🔍 Asisten Audit Internal")
-st.markdown("**PT Agrinas Pangan Nusantara - Asisten AI**")
+st.title("🔍 Asisten Pintar JDIH Audit Internal")
+st.markdown("**PT Agrinas Pangan Nusantara - Strategi Audit 2026**")
 st.markdown("---")
 
 # 2. Menu Samping untuk Kunci Keamanan
@@ -23,23 +23,30 @@ with st.sidebar:
 @st.cache_resource
 def muat_database():
     PATH_SIMPAN = './storage'
+    FILE_UTAMA = f'{PATH_SIMPAN}/docstore.json'
     
-    # Jika otak AI (folder storage) belum ada di server, otomatis sedot dari Google Drive!
-    if not os.path.exists(PATH_SIMPAN):
-        with st.spinner("Sedang mengunduh Database Audit dari server (Hanya terjadi sekali)..."):
-            # Ini adalah ID dari link Google Drive Anda
+    # PERBAIKAN: Kita cek apakah "isinya" (docstore.json) benar-benar ada.
+    # Jika tidak ada, paksa download dari Google Drive!
+    if not os.path.exists(FILE_UTAMA):
+        with st.spinner("Mengambil database terbaru dari server pusat (Mohon tunggu 1-2 menit)..."):
             file_id = '1PdwjktYw1DV3Y45hPlQ9d_WIoC-1Djye'
-            url = f'https://drive.google.com/uc?id={file_id}'
             output = 'storage.zip'
             
             try:
-                gdown.download(url, output, quiet=False)
-                # Ekstrak file Zip-nya
+                # Mengunduh file
+                gdown.download(id=file_id, output=output, quiet=False)
+                
+                # Ekstrak file Zip
                 with zipfile.ZipFile(output, 'r') as zip_ref:
                     zip_ref.extractall('.')
+                    
             except Exception as e:
-                st.error(f"❌ Gagal mengunduh database: {e}")
+                st.error(f"❌ Gagal mengunduh database dari Google Drive: {e}")
                 return None
+
+    # PERBAIKAN: Antisipasi jika terekstrak menjadi folder ganda (storage/storage/...)
+    if not os.path.exists(FILE_UTAMA) and os.path.exists('./storage/storage/docstore.json'):
+        PATH_SIMPAN = './storage/storage'
 
     # Proses membaca ingatan AI
     Settings.embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
@@ -48,7 +55,7 @@ def muat_database():
         index = load_index_from_storage(storage_context)
         return index
     except Exception as e:
-        st.error(f"❌ Gagal memuat index: {e}")
+        st.error(f"❌ Gagal memuat dokumen: {e}")
         return None
 
 # 4. Validasi Kunci
@@ -86,7 +93,7 @@ if prompt := st.chat_input("Ketik topik audit di sini..."):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("Menganalisis dokumen SK Direksi..."):
+        with st.spinner("Menganalisis ratusan dokumen..."):
             pertanyaan_super = f"""
             Tolong berikan analisis yang SANGAT PANJANG, LUAS, MENDETAIL, dan KOMPREHENSIF mengenai topik ini: "{prompt}".
 
