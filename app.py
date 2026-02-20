@@ -9,8 +9,8 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 # 1. Tampilan Halaman Web
 st.set_page_config(page_title="JDIH Audit Agrinas", page_icon="🔍", layout="centered")
 
-st.title("🔍 Asisten Pintar JDIH Audit Internal")
-st.markdown("**PT Agrinas Pangan Nusantara - Strategi Audit 2026**")
+st.title("🔍 Asisten Audit Internal")
+st.markdown("**PT Agrinas Pangan Nusantara - Asisten AI**")
 st.markdown("---")
 
 # 2. Menu Samping untuk Kunci Keamanan
