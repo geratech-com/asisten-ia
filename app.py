@@ -7,10 +7,10 @@ from llama_index.llms.google_genai import GoogleGenAI
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 # 1. Tampilan Halaman Web
-st.set_page_config(page_title="JDIH Audit Agrinas", page_icon="🔍", layout="centered")
+st.set_page_config(page_title="Asisten Audit Agrinas", page_icon="🔍", layout="centered")
 
-st.title("🔍 Asisten Pintar JDIH Audit Internal")
-st.markdown("**PT Agrinas Pangan Nusantara - Strategi Audit 2026**")
+st.title("🔍 Asisten Audit Internal")
+st.markdown("**PT Agrinas Pangan Nusantara - Asisten IA**")
 st.markdown("---")
 
 # 2. Menu Samping untuk Kunci Keamanan
@@ -23,10 +23,14 @@ with st.sidebar:
 @st.cache_resource
 def muat_database():
     PATH_SIMPAN = './storage'
+    
+    # KUNCI PERBAIKAN 1: Buat folder storage jika belum ada di server
+    if not os.path.exists(PATH_SIMPAN):
+        os.makedirs(PATH_SIMPAN)
+
     FILE_UTAMA = f'{PATH_SIMPAN}/docstore.json'
     
-    # PERBAIKAN: Kita cek apakah "isinya" (docstore.json) benar-benar ada.
-    # Jika tidak ada, paksa download dari Google Drive!
+    # Jika isinya (docstore.json) tidak ada, paksa download dari Google Drive!
     if not os.path.exists(FILE_UTAMA):
         with st.spinner("Mengambil database terbaru dari server pusat (Mohon tunggu 1-2 menit)..."):
             file_id = '1PdwjktYw1DV3Y45hPlQ9d_WIoC-1Djye'
@@ -36,15 +40,15 @@ def muat_database():
                 # Mengunduh file
                 gdown.download(id=file_id, output=output, quiet=False)
                 
-                # Ekstrak file Zip
+                # KUNCI PERBAIKAN 2: Ekstrak paksa ke dalam folder './storage'
                 with zipfile.ZipFile(output, 'r') as zip_ref:
-                    zip_ref.extractall('.')
+                    zip_ref.extractall('./storage')
                     
             except Exception as e:
                 st.error(f"❌ Gagal mengunduh database dari Google Drive: {e}")
                 return None
 
-    # PERBAIKAN: Antisipasi jika terekstrak menjadi folder ganda (storage/storage/...)
+    # Antisipasi ekstra jika terekstrak menjadi folder ganda (storage/storage/...)
     if not os.path.exists(FILE_UTAMA) and os.path.exists('./storage/storage/docstore.json'):
         PATH_SIMPAN = './storage/storage'
 
@@ -55,7 +59,7 @@ def muat_database():
         index = load_index_from_storage(storage_context)
         return index
     except Exception as e:
-        st.error(f"❌ Gagal memuat dokumen: {e}")
+        st.error(f"❌ Gagal memuat index/dokumen: {e}")
         return None
 
 # 4. Validasi Kunci
