@@ -24,7 +24,7 @@ with st.sidebar:
 def muat_database():
     PATH_SIMPAN = './storage'
     
-    # KUNCI PERBAIKAN 1: Buat folder storage jika belum ada di server
+    # Buat folder storage jika belum ada di server
     if not os.path.exists(PATH_SIMPAN):
         os.makedirs(PATH_SIMPAN)
 
@@ -33,14 +33,19 @@ def muat_database():
     # Jika isinya (docstore.json) tidak ada, paksa download dari Google Drive!
     if not os.path.exists(FILE_UTAMA):
         with st.spinner("Mengambil database terbaru dari server pusat (Mohon tunggu 1-2 menit)..."):
-            file_id = '1PdwjktYw1DV3Y45hPlQ9d_WIoC-1Djye'
+            
+            # 🔍 MASUKKAN ID FILE 'database_ai.zip' BAPAK DI SINI
+            file_id_baru = '1aLGhHcG9A2Nm4KAKQzUarIMBGk1St9lt' 
+            
+            # Format URL penuh agar fitur fuzzy penembus blokir Google bisa aktif
+            url_download = f'https://drive.google.com/uc?id={file_id_baru}'
             output = 'storage.zip'
             
             try:
-                # Mengunduh file
-                gdown.download(id=file_id, output=output, quiet=False)
+                # 🔍 PERBAIKAN UTAMA: Menggunakan URL penuh dan fuzzy=True untuk melewati limit virus scan
+                gdown.download(url=url_download, output=output, quiet=False, fuzzy=True)
                 
-                # KUNCI PERBAIKAN 2: Ekstrak paksa ke dalam folder './storage'
+                # Ekstrak file zip ke dalam folder './storage'
                 with zipfile.ZipFile(output, 'r') as zip_ref:
                     zip_ref.extractall('./storage')
                     
