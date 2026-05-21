@@ -2,4 +2,4 @@ streamlit
 llama-index
 llama-index-llms-google-genai
 llama-index-embeddings-huggingface
-gdown
+gdown>=5.1.0
