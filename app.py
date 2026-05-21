@@ -25,7 +25,7 @@ def download_file_besar_drive(id_file, jalur_output):
     sesi = requests.Session()
     respon = sesi.get(URL_BASE, params={'id': id_file}, stream=True)
     
-    # Periksa apakah Google memunculkan halaman konfirmasi virus scan
+    # Periksa apakah Google memunculkan halaman konfirmasi virus scan karena file > 100MB
     token_konfirmasi = None
     for kunci, nilai in respon.cookies.items():
         if kunci.startswith('download_warning'):
@@ -51,23 +51,23 @@ def muat_database():
 
     FILE_UTAMA = f'{PATH_SIMPAN}/docstore.json'
     
-    # Jika database belum ada di server Streamlit, lakukan download & extract
+    # Jika database belum ada di server Streamlit, lakukan download & extract otomatis
     if not os.path.exists(FILE_UTAMA):
-        with st.spinner("Mengambil database 919 MB dari server pusat (Mohon tunggu 1-3 menit, jangan di-close)..."):
+        with st.spinner("Mengambil database 919 MB dari Google Drive (Mohon tunggu 1-3 menit, proses ini hanya berjalan sekali)..."):
             
-            # 🔍 LANGKAH WAJIB: Klik kanan 'database_ai.zip' di Drive, pilih Bagikan -> Ambil ID-nya dan tempel di bawah ini
+            # ✅ ID Ril file database_ai.zip Bapak sudah dimasukkan di bawah ini
             file_id = '1aLGhHcG9A2Nm4KAKQzUarIMBGk1St9lt'
             output_zip = 'database_ai.zip'
             
             try:
-                # Unduh file raksasa bypass scan virus
+                # Proses download file raksasa dengan bypass scan virus
                 download_file_besar_drive(file_id, output_zip)
                 
                 # Ekstrak file zip ke folder './storage'
                 with zipfile.ZipFile(output_zip, 'r') as zip_ref:
                     zip_ref.extractall('./storage')
                     
-                # Hapus file zip mentah setelah diekstrak agar server hemat ruang
+                # Hapus file zip mentah setelah diekstrak agar server Streamlit hemat ruang
                 if os.path.exists(output_zip):
                     os.remove(output_zip)
                     
