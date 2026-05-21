@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 import zipfile
-import requests
+import gdown
 from llama_index.core import StorageContext, load_index_from_storage, Settings
 from llama_index.llms.google_genai import GoogleGenAI
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
@@ -19,28 +19,6 @@ with st.sidebar:
     api_key = st.text_input("Masukkan Google Gemini API Key:", type="password")
     st.info("💡 Masukkan kunci API Anda di sini agar aplikasi bisa berjalan.")
 
-# Fungsi tangguh untuk download file besar dari Google Drive tanpa gdown
-def download_file_besar_drive(id_file, jalur_output):
-    URL_BASE = "https://docs.google.com/uc?export=download"
-    sesi = requests.Session()
-    respon = sesi.get(URL_BASE, params={'id': id_file}, stream=True)
-    
-    # Periksa apakah Google memunculkan halaman konfirmasi virus scan karena file > 100MB
-    token_konfirmasi = None
-    for kunci, nilai in respon.cookies.items():
-        if kunci.startswith('download_warning'):
-            token_konfirmasi = nilai
-            break
-            
-    if token_konfirmasi:
-        params = {'id': id_file, 'confirm': token_konfirmasi}
-        respon = sesi.get(URL_BASE, params=params, stream=True)
-        
-    with open(jalur_output, "wb") as f:
-        for chunk in respon.iter_content(chunk_size=32768):
-            if chunk:
-                f.write(chunk)
-
 # 3. Fungsi Cerdas Memuat dan Mengunduh Database
 @st.cache_resource
 def muat_database():
@@ -51,23 +29,23 @@ def muat_database():
 
     FILE_UTAMA = f'{PATH_SIMPAN}/docstore.json'
     
-    # Jika database belum ada di server Streamlit, lakukan download & extract otomatis
+    # Jika database belum ada di server Streamlit, lakukan download & extract
     if not os.path.exists(FILE_UTAMA):
-        with st.spinner("Mengambil database 919 MB dari Google Drive (Mohon tunggu 1-3 menit, proses ini hanya berjalan sekali)..."):
+        with st.spinner("Mengambil pangkalan data (919 MB) dari Google Drive. Proses ini butuh waktu 2-5 menit..."):
             
-            # ✅ ID Ril file database_ai.zip Bapak sudah dimasukkan di bawah ini
             file_id = '1aLGhHcG9A2Nm4KAKQzUarIMBGk1St9lt'
+            url_download = f'https://drive.google.com/uc?id={file_id}'
             output_zip = 'database_ai.zip'
             
             try:
-                # Proses download file raksasa dengan bypass scan virus
-                download_file_besar_drive(file_id, output_zip)
+                # Menggunakan gdown versi terbaru (wajib ada gdown>=5.1.0 di requirements.txt)
+                gdown.download(url=url_download, output=output_zip, quiet=False, fuzzy=True)
                 
-                # Ekstrak file zip ke folder './storage'
+                # Ekstrak file zip
                 with zipfile.ZipFile(output_zip, 'r') as zip_ref:
                     zip_ref.extractall('./storage')
                     
-                # Hapus file zip mentah setelah diekstrak agar server Streamlit hemat ruang
+                # Hapus file zip mentah
                 if os.path.exists(output_zip):
                     os.remove(output_zip)
                     
@@ -75,11 +53,9 @@ def muat_database():
                 st.error(f"❌ Gagal mengunduh atau mengekstrak database: {e}")
                 return None
 
-    # Antisipasi jika struktur zip membungkus folder di dalam folder (storage/storage/...)
     if not os.path.exists(FILE_UTAMA) and os.path.exists('./storage/storage/docstore.json'):
         PATH_SIMPAN = './storage/storage'
 
-    # Proses membaca ingatan AI
     Settings.embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
     try:
         storage_context = StorageContext.from_defaults(persist_dir=PATH_SIMPAN)
@@ -112,12 +88,10 @@ if "chat_engine" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Menampilkan riwayat chat
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 6. Kotak Tanya Jawab
 if prompt := st.chat_input("Ketik topik audit di sini..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
