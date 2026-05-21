@@ -1,7 +1,7 @@
 import streamlit as st
 import os
-import gdown
 import zipfile
+import requests
 from llama_index.core import StorageContext, load_index_from_storage, Settings
 from llama_index.llms.google_genai import GoogleGenAI
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
@@ -19,41 +19,63 @@ with st.sidebar:
     api_key = st.text_input("Masukkan Google Gemini API Key:", type="password")
     st.info("💡 Masukkan kunci API Anda di sini agar aplikasi bisa berjalan.")
 
+# Fungsi tangguh untuk download file besar dari Google Drive tanpa gdown
+def download_file_besar_drive(id_file, jalur_output):
+    URL_BASE = "https://docs.google.com/uc?export=download"
+    sesi = requests.Session()
+    respon = sesi.get(URL_BASE, params={'id': id_file}, stream=True)
+    
+    # Periksa apakah Google memunculkan halaman konfirmasi virus scan
+    token_konfirmasi = None
+    for kunci, nilai in respon.cookies.items():
+        if kunci.startswith('download_warning'):
+            token_konfirmasi = nilai
+            break
+            
+    if token_konfirmasi:
+        params = {'id': id_file, 'confirm': token_konfirmasi}
+        respon = sesi.get(URL_BASE, params=params, stream=True)
+        
+    with open(jalur_output, "wb") as f:
+        for chunk in respon.iter_content(chunk_size=32768):
+            if chunk:
+                f.write(chunk)
+
 # 3. Fungsi Cerdas Memuat dan Mengunduh Database
 @st.cache_resource
 def muat_database():
     PATH_SIMPAN = './storage'
     
-    # Buat folder storage jika belum ada di server
     if not os.path.exists(PATH_SIMPAN):
         os.makedirs(PATH_SIMPAN)
 
     FILE_UTAMA = f'{PATH_SIMPAN}/docstore.json'
     
-    # Jika isinya (docstore.json) tidak ada, paksa download dari Google Drive!
+    # Jika database belum ada di server Streamlit, lakukan download & extract
     if not os.path.exists(FILE_UTAMA):
-        with st.spinner("Mengambil database terbaru dari server pusat (Mohon tunggu 1-2 menit)..."):
+        with st.spinner("Mengambil database 919 MB dari server pusat (Mohon tunggu 1-3 menit, jangan di-close)..."):
             
-            # 🔍 MASUKKAN ID FILE 'database_ai.zip' BAPAK DI SINI
-            file_id_baru = '1aLGhHcG9A2Nm4KAKQzUarIMBGk1St9lt' 
-            
-            # Format URL penuh agar fitur fuzzy penembus blokir Google bisa aktif
-            url_download = f'https://drive.google.com/uc?id={file_id_baru}'
-            output = 'storage.zip'
+            # 🔍 LANGKAH WAJIB: Klik kanan 'database_ai.zip' di Drive, pilih Bagikan -> Ambil ID-nya dan tempel di bawah ini
+            file_id = '1aLGhHcG9A2Nm4KAKQzUarIMBGk1St9lt'
+            output_zip = 'database_ai.zip'
             
             try:
-                # 🔍 PERBAIKAN UTAMA: Menggunakan URL penuh dan fuzzy=True untuk melewati limit virus scan
-                gdown.download(url=url_download, output=output, quiet=False, fuzzy=True)
+                # Unduh file raksasa bypass scan virus
+                download_file_besar_drive(file_id, output_zip)
                 
-                # Ekstrak file zip ke dalam folder './storage'
-                with zipfile.ZipFile(output, 'r') as zip_ref:
+                # Ekstrak file zip ke folder './storage'
+                with zipfile.ZipFile(output_zip, 'r') as zip_ref:
                     zip_ref.extractall('./storage')
                     
+                # Hapus file zip mentah setelah diekstrak agar server hemat ruang
+                if os.path.exists(output_zip):
+                    os.remove(output_zip)
+                    
             except Exception as e:
-                st.error(f"❌ Gagal mengunduh database dari Google Drive: {e}")
+                st.error(f"❌ Gagal mengunduh atau mengekstrak database: {e}")
                 return None
 
-    # Antisipasi ekstra jika terekstrak menjadi folder ganda (storage/storage/...)
+    # Antisipasi jika struktur zip membungkus folder di dalam folder (storage/storage/...)
     if not os.path.exists(FILE_UTAMA) and os.path.exists('./storage/storage/docstore.json'):
         PATH_SIMPAN = './storage/storage'
 
