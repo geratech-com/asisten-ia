@@ -19,7 +19,7 @@ with st.sidebar:
     api_key = st.text_input("Masukkan Google Gemini API Key:", type="password")
     st.info("💡 Masukkan kunci API Anda di sini agar aplikasi bisa berjalan.")
 
-# 3. Fungsi Cerdas Memuat Database (Via GitHub Releases)
+# 3. Fungsi Cerdas Memuat Database (Pelacak Otomatis)
 @st.cache_resource
 def muat_database():
     PATH_SIMPAN = './storage'
@@ -27,39 +27,41 @@ def muat_database():
     if not os.path.exists(PATH_SIMPAN):
         os.makedirs(PATH_SIMPAN)
 
-    FILE_UTAMA = f'{PATH_SIMPAN}/docstore.json'
+    # Cek apakah database sudah pernah diunduh dan diekstrak
+    sudah_ada_data = False
+    for root, dirs, files in os.walk(PATH_SIMPAN):
+        if 'docstore.json' in files:
+            sudah_ada_data = True
+            break
     
-    # Jika database belum ada, download langsung dari GitHub (Anti-Blokir)
-    if not os.path.exists(FILE_UTAMA):
-        with st.spinner("Mengambil pangkalan data dari server GitHub. Mohon tunggu 2-5 menit..."):
-            
-            output_zip = 'database_ai.zip'
+    # Jika belum ada data, download dari GitHub
+    if not sudah_ada_data:
+        with st.spinner("Mengambil pangkalan data uji coba dari server GitHub..."):
+            output_zip = 'database_ai_mini.zip'
             
             # 🎯 PASTE LINK GITHUB RELEASE BAPAK DI ANTARA TANDA KUTIP DI BAWAH INI:
-            url_direct = 'https://github.com/geratech-com/asisten-ia/releases/download/v1.0/database_ai_mini.zip'
+            url_direct = 'MASUKKAN_LINK_GITHUB_DISINI'
             
             try:
-                # Menggunakan pengunduh bawaan Python yang paling stabil
                 urllib.request.urlretrieve(url_direct, output_zip)
-                
-                # Ekstrak file zip
                 with zipfile.ZipFile(output_zip, 'r') as zip_ref:
-                    zip_ref.extractall('./storage')
-                    
-                # Hapus file zip mentah
+                    zip_ref.extractall(PATH_SIMPAN)
                 if os.path.exists(output_zip):
                     os.remove(output_zip)
-                    
             except Exception as e:
                 st.error(f"❌ Gagal menyedot data dari GitHub: {e}")
                 return None
 
-    if not os.path.exists(FILE_UTAMA) and os.path.exists('./storage/storage/docstore.json'):
-        PATH_SIMPAN = './storage/storage'
+    # PELACAK OTOMATIS: Cari persis di mana letak 'docstore.json' bersembunyi
+    PATH_FINAL = PATH_SIMPAN
+    for root, dirs, files in os.walk(PATH_SIMPAN):
+        if 'docstore.json' in files:
+            PATH_FINAL = root
+            break
 
     Settings.embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
     try:
-        storage_context = StorageContext.from_defaults(persist_dir=PATH_SIMPAN)
+        storage_context = StorageContext.from_defaults(persist_dir=PATH_FINAL)
         index = load_index_from_storage(storage_context)
         return index
     except Exception as e:
@@ -82,7 +84,7 @@ if index is None:
 
 if "chat_engine" not in st.session_state:
     st.session_state.chat_engine = index.as_chat_engine(
-        system_prompt="Anda adalah Asisten Internal Audit PT Agrinas Pangan Nusantara. Tugas Anda adalah menjelaskan secara komprehensif dan profesional.",
+        system_prompt="Anda adalah Asisten Internal Audit PT Agrinas Pangan Nusantara. Tugas Anda adalah menjelaskan secara komprehensif dan profesional berdasarkan dokumen.",
         similarity_top_k=15
     )
 
@@ -99,7 +101,7 @@ if prompt := st.chat_input("Ketik topik audit di sini..."):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("Menganalisis ratusan dokumen..."):
+        with st.spinner("Menganalisis pedoman..."):
             pertanyaan_super = f"""
             Tolong berikan analisis yang SANGAT PANJANG, LUAS, MENDETAIL, dan KOMPREHENSIF mengenai topik ini: "{prompt}".
 
