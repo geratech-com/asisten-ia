@@ -1,5 +1,20 @@
-import streamlit as st
+# ==========================================
+# 0. SKRIP PEMAKSA UPDATE SISTEM (OTOMATIS)
+# ==========================================
+import subprocess
+import sys
 import os
+
+# Memaksa server menginstal gdown versi terbaru sebelum menyalakan aplikasi
+try:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "gdown>=5.1.0"])
+except Exception as e:
+    pass
+
+# ==========================================
+# MULAI KODE APLIKASI UTAMA
+# ==========================================
+import streamlit as st
 import zipfile
 import gdown
 from llama_index.core import StorageContext, load_index_from_storage, Settings
@@ -29,23 +44,24 @@ def muat_database():
 
     FILE_UTAMA = f'{PATH_SIMPAN}/docstore.json'
     
-    # Jika database belum ada di server Streamlit, lakukan download & extract
+    # Jika database belum ada di server Streamlit, lakukan download otomatis
     if not os.path.exists(FILE_UTAMA):
-        with st.spinner("Mengambil pangkalan data (919 MB) dari Google Drive. Proses ini butuh waktu 2-5 menit..."):
+        with st.spinner("Mengambil pangkalan data raksasa (919 MB) dari Google Drive. Mohon tunggu 2-5 menit..."):
             
+            # ID Ril file database_ai.zip Bapak
             file_id = '1aLGhHcG9A2Nm4KAKQzUarIMBGk1St9lt'
             url_download = f'https://drive.google.com/uc?id={file_id}'
             output_zip = 'database_ai.zip'
             
             try:
-                # Menggunakan gdown versi terbaru (wajib ada gdown>=5.1.0 di requirements.txt)
+                # Karena sistem sudah dipaksa update di atas, perintah fuzzy=True ini akan sukses
                 gdown.download(url=url_download, output=output_zip, quiet=False, fuzzy=True)
                 
-                # Ekstrak file zip
+                # Ekstrak file zip ke folder './storage'
                 with zipfile.ZipFile(output_zip, 'r') as zip_ref:
                     zip_ref.extractall('./storage')
                     
-                # Hapus file zip mentah
+                # Bersihkan sampah zip
                 if os.path.exists(output_zip):
                     os.remove(output_zip)
                     
@@ -53,9 +69,11 @@ def muat_database():
                 st.error(f"❌ Gagal mengunduh atau mengekstrak database: {e}")
                 return None
 
+    # Antisipasi jika hasil ekstrak membuat folder ganda (storage/storage/...)
     if not os.path.exists(FILE_UTAMA) and os.path.exists('./storage/storage/docstore.json'):
         PATH_SIMPAN = './storage/storage'
 
+    # Menyalakan mesin pembaca
     Settings.embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
     try:
         storage_context = StorageContext.from_defaults(persist_dir=PATH_SIMPAN)
@@ -88,10 +106,12 @@ if "chat_engine" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# Menampilkan riwayat chat
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
+# 6. Kotak Tanya Jawab
 if prompt := st.chat_input("Ketik topik audit di sini..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
