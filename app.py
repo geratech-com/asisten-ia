@@ -1,7 +1,8 @@
 import streamlit as st
 import os
 import zipfile
-import subprocess
+import requests
+import re
 from llama_index.core import StorageContext, load_index_from_storage, Settings
 from llama_index.llms.google_genai import GoogleGenAI
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
@@ -19,7 +20,42 @@ with st.sidebar:
     api_key = st.text_input("Masukkan Google Gemini API Key:", type="password")
     st.info("💡 Masukkan kunci API Anda di sini agar aplikasi bisa berjalan.")
 
-# 3. Fungsi Cerdas Memuat dan Mengunduh Database (Taktik Terminal Bypass)
+# =====================================================================
+# SENJATA BARU: PENGUNDUH ANTI-BLOKIR (PENGGANTI GDOWN)
+# =====================================================================
+def unduh_paksa_drive(id_file, output_path):
+    URL = "https://docs.google.com/uc?export=download"
+    session = requests.Session()
+    
+    # Mengetuk pintu Google Drive
+    response = session.get(URL, params={'id': id_file}, stream=True)
+
+    token = None
+    # Taktik 1: Cari kunci (token) peringatan virus di dalam saku Cookie
+    for key, value in response.cookies.items():
+        if key.startswith('download_warning'):
+            token = value
+            break
+
+    # Taktik 2: Jika disembunyikan Google, bongkar isi HTML halamannya
+    if not token:
+        isi_halaman = response.text
+        cocok = re.search(r'confirm=([a-zA-Z0-9_-]+)', isi_halaman)
+        if cocok:
+            token = cocok.group(1)
+
+    # Masuk kembali membawa kunci token tersebut
+    if token:
+        params = {'id': id_file, 'confirm': token}
+        response = session.get(URL, params=params, stream=True)
+
+    # Sedot datanya perlahan agar stabil
+    with open(output_path, "wb") as f:
+        for chunk in response.iter_content(chunk_size=32768):
+            if chunk:
+                f.write(chunk)
+
+# 3. Fungsi Cerdas Memuat Database
 @st.cache_resource
 def muat_database():
     PATH_SIMPAN = './storage'
@@ -29,44 +65,30 @@ def muat_database():
 
     FILE_UTAMA = f'{PATH_SIMPAN}/docstore.json'
     
-    # Jika database belum ada di server Streamlit, lakukan download otomatis
     if not os.path.exists(FILE_UTAMA):
-        with st.spinner("Mengambil pangkalan data 919 MB dari Drive (Taktik Bypass Terminal). Mohon tunggu 2-5 menit..."):
+        with st.spinner("Mengambil pangkalan data 919 MB dengan jalur khusus. Mohon tunggu 2-5 menit..."):
             
             output_zip = 'database_ai.zip'
-            url_download = 'https://drive.google.com/uc?id=1aLGhHcG9A2Nm4KAKQzUarIMBGk1St9lt'
+            file_id = '1aLGhHcG9A2Nm4KAKQzUarIMBGk1St9lt'
             
             try:
-                # LANGKAH 1: Paksa instal gdown terbaru diam-diam di terminal server
-                subprocess.run(["pip", "install", "--upgrade", "gdown"], capture_output=True)
+                # Memanggil alat pengunduh rahasia kita
+                unduh_paksa_drive(file_id, output_zip)
                 
-                # LANGKAH 2: Eksekusi download langsung lewat terminal (mengabaikan memori Python)
-                # Command: gdown https://... -O database_ai.zip --fuzzy
-                perintah_download = ["gdown", url_download, "-O", output_zip, "--fuzzy"]
-                hasil_terminal = subprocess.run(perintah_download, capture_output=True, text=True)
-                
-                # Cek apakah file benar-benar berhasil terunduh
-                if not os.path.exists(output_zip):
-                    st.error(f"❌ Gagal bypass Google Drive. Log error: {hasil_terminal.stderr}")
-                    return None
-                    
-                # LANGKAH 3: Ekstrak file zip ke folder './storage'
+                # Ekstrak file zip
                 with zipfile.ZipFile(output_zip, 'r') as zip_ref:
                     zip_ref.extractall('./storage')
                     
-                # Bersihkan sampah zip agar server tidak penuh
                 if os.path.exists(output_zip):
                     os.remove(output_zip)
                     
             except Exception as e:
-                st.error(f"❌ Terjadi kegagalan sistem ekstrak: {e}")
+                st.error(f"❌ Gagal menyedot data dari Google Drive: {e}")
                 return None
 
-    # Antisipasi jika hasil ekstrak membuat folder ganda (storage/storage/...)
     if not os.path.exists(FILE_UTAMA) and os.path.exists('./storage/storage/docstore.json'):
         PATH_SIMPAN = './storage/storage'
 
-    # Menyalakan mesin pembaca
     Settings.embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
     try:
         storage_context = StorageContext.from_defaults(persist_dir=PATH_SIMPAN)
@@ -99,12 +121,10 @@ if "chat_engine" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Menampilkan riwayat chat
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 6. Kotak Tanya Jawab
 if prompt := st.chat_input("Ketik topik audit di sini..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
