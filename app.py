@@ -21,41 +21,47 @@ with st.sidebar:
     st.info("💡 Masukkan kunci API Anda di sini agar aplikasi bisa berjalan.")
 
 # =====================================================================
-# SENJATA BARU: PENGUNDUH ANTI-BLOKIR (PENGGANTI GDOWN)
+# SENJATA FINAL: PENGUNDUH CERDAS ANTI-BLOKIR (V2)
 # =====================================================================
 def unduh_paksa_drive(id_file, output_path):
-    URL = "https://docs.google.com/uc?export=download"
+    URL = "https://drive.google.com/uc?export=download"
     session = requests.Session()
     
-    # Mengetuk pintu Google Drive
-    response = session.get(URL, params={'id': id_file}, stream=True)
-
+    # LANGKAH 1: Ketuk pintu tanpa streaming untuk membedah halaman peringatan
+    res_awal = session.get(URL, params={'id': id_file})
+    
     token = None
-    # Taktik 1: Cari kunci (token) peringatan virus di dalam saku Cookie
-    for key, value in response.cookies.items():
+    # Cari token izin dari Cookie
+    for key, value in res_awal.cookies.items():
         if key.startswith('download_warning'):
             token = value
             break
-
-    # Taktik 2: Jika disembunyikan Google, bongkar isi HTML halamannya
+            
+    # Jika tidak ada di Cookie, bedah langsung isi HTML-nya
     if not token:
-        isi_halaman = response.text
-        cocok = re.search(r'confirm=([a-zA-Z0-9_-]+)', isi_halaman)
+        cocok = re.search(r'confirm=([a-zA-Z0-9_-]+)', res_awal.text)
         if cocok:
             token = cocok.group(1)
-
-    # Masuk kembali membawa kunci token tersebut
+            
+    # LANGKAH 2: Masuk ambil file asli membawa token, nyalakan STREAMING
     if token:
-        params = {'id': id_file, 'confirm': token}
-        response = session.get(URL, params=params, stream=True)
-
-    # Sedot datanya perlahan agar stabil
+        res_final = session.get(URL, params={'id': id_file, 'confirm': token}, stream=True)
+    else:
+        # Fallback cadangan
+        res_final = session.get(URL, params={'id': id_file}, stream=True)
+        
+    # LANGKAH 3: Pengecekan Keamanan (Pastikan yang diunduh benar-benar ZIP)
+    tipe_konten = res_final.headers.get('Content-Type', '')
+    if 'text/html' in tipe_konten:
+        raise Exception("Google Drive masih memblokir. Yang terunduh adalah halaman web peringatan.")
+        
+    # LANGKAH 4: Sedot file secara bertahap (1 MB per sedotan) agar RAM aman
     with open(output_path, "wb") as f:
-        for chunk in response.iter_content(chunk_size=32768):
+        for chunk in res_final.iter_content(chunk_size=1024*1024):
             if chunk:
                 f.write(chunk)
 
-# 3. Fungsi Cerdas Memuat Database
+# 3. Fungsi Memuat Database
 @st.cache_resource
 def muat_database():
     PATH_SIMPAN = './storage'
@@ -66,19 +72,20 @@ def muat_database():
     FILE_UTAMA = f'{PATH_SIMPAN}/docstore.json'
     
     if not os.path.exists(FILE_UTAMA):
-        with st.spinner("Mengambil pangkalan data 919 MB dengan jalur khusus. Mohon tunggu 2-5 menit..."):
+        with st.spinner("Mengambil pangkalan data 919 MB dari Drive. Mohon tunggu 2-5 menit..."):
             
             output_zip = 'database_ai.zip'
             file_id = '1aLGhHcG9A2Nm4KAKQzUarIMBGk1St9lt'
             
             try:
-                # Memanggil alat pengunduh rahasia kita
+                # Memanggil alat pengunduh cerdas kita
                 unduh_paksa_drive(file_id, output_zip)
                 
                 # Ekstrak file zip
                 with zipfile.ZipFile(output_zip, 'r') as zip_ref:
                     zip_ref.extractall('./storage')
                     
+                # Hapus file zip mentah
                 if os.path.exists(output_zip):
                     os.remove(output_zip)
                     
