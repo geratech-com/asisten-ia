@@ -1,8 +1,7 @@
 import streamlit as st
 import os
 import zipfile
-import requests
-import re
+import urllib.request
 from llama_index.core import StorageContext, load_index_from_storage, Settings
 from llama_index.llms.google_genai import GoogleGenAI
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
@@ -20,48 +19,7 @@ with st.sidebar:
     api_key = st.text_input("Masukkan Google Gemini API Key:", type="password")
     st.info("💡 Masukkan kunci API Anda di sini agar aplikasi bisa berjalan.")
 
-# =====================================================================
-# SENJATA FINAL: PENGUNDUH CERDAS ANTI-BLOKIR (V2)
-# =====================================================================
-def unduh_paksa_drive(id_file, output_path):
-    URL = "https://drive.google.com/uc?export=download"
-    session = requests.Session()
-    
-    # LANGKAH 1: Ketuk pintu tanpa streaming untuk membedah halaman peringatan
-    res_awal = session.get(URL, params={'id': id_file})
-    
-    token = None
-    # Cari token izin dari Cookie
-    for key, value in res_awal.cookies.items():
-        if key.startswith('download_warning'):
-            token = value
-            break
-            
-    # Jika tidak ada di Cookie, bedah langsung isi HTML-nya
-    if not token:
-        cocok = re.search(r'confirm=([a-zA-Z0-9_-]+)', res_awal.text)
-        if cocok:
-            token = cocok.group(1)
-            
-    # LANGKAH 2: Masuk ambil file asli membawa token, nyalakan STREAMING
-    if token:
-        res_final = session.get(URL, params={'id': id_file, 'confirm': token}, stream=True)
-    else:
-        # Fallback cadangan
-        res_final = session.get(URL, params={'id': id_file}, stream=True)
-        
-    # LANGKAH 3: Pengecekan Keamanan (Pastikan yang diunduh benar-benar ZIP)
-    tipe_konten = res_final.headers.get('Content-Type', '')
-    if 'text/html' in tipe_konten:
-        raise Exception("Google Drive masih memblokir. Yang terunduh adalah halaman web peringatan.")
-        
-    # LANGKAH 4: Sedot file secara bertahap (1 MB per sedotan) agar RAM aman
-    with open(output_path, "wb") as f:
-        for chunk in res_final.iter_content(chunk_size=1024*1024):
-            if chunk:
-                f.write(chunk)
-
-# 3. Fungsi Memuat Database
+# 3. Fungsi Cerdas Memuat Database (Via GitHub Releases)
 @st.cache_resource
 def muat_database():
     PATH_SIMPAN = './storage'
@@ -71,15 +29,18 @@ def muat_database():
 
     FILE_UTAMA = f'{PATH_SIMPAN}/docstore.json'
     
+    # Jika database belum ada, download langsung dari GitHub (Anti-Blokir)
     if not os.path.exists(FILE_UTAMA):
-        with st.spinner("Mengambil pangkalan data 919 MB dari Drive. Mohon tunggu 2-5 menit..."):
+        with st.spinner("Mengambil pangkalan data dari server GitHub. Mohon tunggu 2-5 menit..."):
             
             output_zip = 'database_ai.zip'
-            file_id = '1aLGhHcG9A2Nm4KAKQzUarIMBGk1St9lt'
+            
+            # 🎯 PASTE LINK GITHUB RELEASE BAPAK DI ANTARA TANDA KUTIP DI BAWAH INI:
+            url_direct = 'https://github.com/geratech-com/asisten-ia/releases/download/v1.0/database_ai.zip'
             
             try:
-                # Memanggil alat pengunduh cerdas kita
-                unduh_paksa_drive(file_id, output_zip)
+                # Menggunakan pengunduh bawaan Python yang paling stabil
+                urllib.request.urlretrieve(url_direct, output_zip)
                 
                 # Ekstrak file zip
                 with zipfile.ZipFile(output_zip, 'r') as zip_ref:
@@ -90,7 +51,7 @@ def muat_database():
                     os.remove(output_zip)
                     
             except Exception as e:
-                st.error(f"❌ Gagal menyedot data dari Google Drive: {e}")
+                st.error(f"❌ Gagal menyedot data dari GitHub: {e}")
                 return None
 
     if not os.path.exists(FILE_UTAMA) and os.path.exists('./storage/storage/docstore.json'):
