@@ -36,7 +36,7 @@ def muat_database():
             output_zip = 'database_ai.zip'
             
             # 🎯 PASTE LINK GITHUB RELEASE BAPAK DI ANTARA TANDA KUTIP DI BAWAH INI:
-            url_direct = 'https://github.com/geratech-com/asisten-ia/releases/download/v1.0/database_ai.zip'
+            url_direct = 'https://github.com/geratech-com/asisten-ia/releases/download/v1.0/database_ai_mini.zip'
             
             try:
                 # Menggunakan pengunduh bawaan Python yang paling stabil
