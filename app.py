@@ -19,28 +19,27 @@ with st.sidebar:
     api_key = st.text_input("Masukkan Google Gemini API Key:", type="password")
     st.info("💡 Masukkan kunci API Anda di sini agar aplikasi bisa berjalan.")
 
-# 3. Fungsi Cerdas Memuat Database (Pelacak Otomatis)
+# 3. Fungsi Cerdas Memuat Database (Jalur GitHub Release)
 @st.cache_resource
 def muat_database():
     PATH_SIMPAN = './storage'
-    
     if not os.path.exists(PATH_SIMPAN):
         os.makedirs(PATH_SIMPAN)
 
-    # Cek apakah database sudah pernah diunduh dan diekstrak
+    # Cek apakah memori AI sudah ada
     sudah_ada_data = False
     for root, dirs, files in os.walk(PATH_SIMPAN):
         if 'docstore.json' in files:
             sudah_ada_data = True
             break
     
-    # Jika belum ada data, download dari GitHub
+    # Jika memori AI belum terunduh, ambil dari GitHub
     if not sudah_ada_data:
-        with st.spinner("Mengambil pangkalan data uji coba dari server GitHub..."):
-            output_zip = 'database_ai_mini.zip'
+        with st.spinner("Menyedot Pangkalan Data Utama (919 MB) dari GitHub... (Mohon tunggu 2-5 menit)"):
+            output_zip = 'database_ai_utama.zip'
             
-            # 🎯 PASTE LINK GITHUB RELEASE BAPAK DI ANTARA TANDA KUTIP DI BAWAH INI:
-            url_direct = 'https://github.com/geratech-com/asisten-ia/releases/download/v1.0/database_ai_mini.zip'
+            # 🎯 PASTE LINK GITHUB RELEASE BAPAK YANG 919 MB DI BAWAH INI:
+            url_direct = 'https://github.com/geratech-com/asisten-ia/releases/download/v1.0/database_ai.zip'
             
             try:
                 urllib.request.urlretrieve(url_direct, output_zip)
@@ -52,12 +51,18 @@ def muat_database():
                 st.error(f"❌ Gagal menyedot data dari GitHub: {e}")
                 return None
 
-    # PELACAK OTOMATIS: Cari persis di mana letak 'docstore.json' bersembunyi
+    # PELACAK OTOMATIS: Cari persis di mana letak 'docstore.json'
     PATH_FINAL = PATH_SIMPAN
+    file_ditemukan = False
     for root, dirs, files in os.walk(PATH_SIMPAN):
         if 'docstore.json' in files:
             PATH_FINAL = root
+            file_ditemukan = True
             break
+            
+    if not file_ditemukan:
+        st.error("❌ File docstore.json tidak ditemukan! Pastikan file ZIP yang diupload adalah folder hasil Colab, bukan PDF mentah.")
+        return None
 
     Settings.embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
     try:
@@ -84,7 +89,7 @@ if index is None:
 
 if "chat_engine" not in st.session_state:
     st.session_state.chat_engine = index.as_chat_engine(
-        system_prompt="Anda adalah Asisten Internal Audit PT Agrinas Pangan Nusantara. Tugas Anda adalah menjelaskan secara komprehensif dan profesional berdasarkan dokumen.",
+        system_prompt="Anda adalah Asisten Internal Audit PT Agrinas Pangan Nusantara. Tugas Anda adalah menjelaskan secara komprehensif dan profesional berdasarkan dokumen perusahaan.",
         similarity_top_k=15
     )
 
@@ -101,7 +106,7 @@ if prompt := st.chat_input("Ketik topik audit di sini..."):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("Menganalisis pedoman..."):
+        with st.spinner("Menganalisis pedoman PT Agrinas Pangan Nusantara..."):
             pertanyaan_super = f"""
             Tolong berikan analisis yang SANGAT PANJANG, LUAS, MENDETAIL, dan KOMPREHENSIF mengenai topik ini: "{prompt}".
 
